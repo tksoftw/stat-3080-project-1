@@ -1,0 +1,41 @@
+---
+title: "Project Part X" 
+fontsize: 12pt
+geometry: margin=1in
+urlcolor: black
+output: pdf_document
+header-includes:
+- \usepackage{setspace}
+- \onehalfspacing
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, highlight=FALSE)
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+## Use this chunk for reading in packages.
+## Use this chunk for reading in the data, combining the data, and any other major data cleaning that is not relevant to show.
+## Remove the ## before all code.
+```
+
+## Section headers 
+### Subsection headers, if using
+Your text.
+
+Linebreaks are created using two spaces at the end of the previous line of text, or using the command \newline.  
+Pagebreaks are created using the command \newpage.  
+Note: These commands execute when knitting, moving the end-of-sentence period in the resulting PDF.
+
+```{r, echo=FALSE}
+## R code to create and display summaries in part 1. 
+## This R code will not be printed in the PDF.
+## Remove the ## before all code.
+```
+
+```{r}
+## R code to conduct the test in part 2.
+## This R code will be printed in the PDF.
+## Remove the ## before all code.
+```
+
