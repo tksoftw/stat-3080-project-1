@@ -1,0 +1,285 @@
+---
+title: "Project Part 1" 
+fontsize: 12pt
+geometry: margin=1in
+urlcolor: black
+output: pdf_document
+header-includes:
+- \usepackage{setspace}
+- \onehalfspacing
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, highlight=FALSE)
+```
+
+```{r data_prep, echo=FALSE, warning=FALSE, message=FALSE}
+## Use this chunk for reading in packages.
+## Use this chunk for reading in the data, combining the data, and any other major data cleaning that is not relevant to show.
+
+required_pkgs <- c("rmarkdown", "knitr", "dplyr", "tidyr", "ggplot2", "scales", "viridis")
+for (pkg in required_pkgs) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg, repos = "http://cran.us.r-project.org")
+  }
+}
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(scales)
+  library(viridis)
+})
+
+# Aspect ratio correction for D.C. latitude (~38.9°N)
+DC_LAT      <- 38.9
+COORD_RATIO <- 1 / cos(DC_LAT * pi / 180)
+
+EARTH_RADIUS_KM    <- 6371
+KM_PER_DEG         <- 2 * pi * EARTH_RADIUS_KM / 360
+DC_BLOCK_RADIUS_KM <- 62 / 1000   
+BLOCKS             <- 5
+CIRCLE_RADIUS_KM   <- DC_BLOCK_RADIUS_KM * BLOCKS
+CELL_DEG           <- CIRCLE_RADIUS_KM / KM_PER_DEG
+
+df_bike  <- read.csv("Capital_Bike_Share_Locations.csv")[ , c("LATITUDE","LONGITUDE")]
+df_crime <- read.csv("Crime_Incidents_in_2026.csv"     )[ , c("LATITUDE","LONGITUDE","OFFENSE")]
+
+distance_earth <- function(lat1, lon1, lat2, lon2) {
+  dlat <- (lat2 - lat1) * pi / 180
+  dlon <- (lon2 - lon1) * pi / 180
+  a    <- sin(dlat/2)^2 + cos(lat1*pi/180) * cos(lat2*pi/180) * sin(dlon/2)^2
+  2 * EARTH_RADIUS_KM * asin(sqrt(a))
+}
+
+# Filter bikeshare stations to within 12 km of the geographic center of D.C.
+DC_CENTER_LAT <- 38.89611955656356
+DC_CENTER_LON <- -77.03909524094121
+DC_FILTER_KM  <- 12
+
+df_bike <- df_bike %>%
+  filter(distance_earth(LATITUDE, LONGITUDE, DC_CENTER_LAT, DC_CENTER_LON) <= DC_FILTER_KM)
+
+grid <- new.env(hash = TRUE, parent = emptyenv())
+for (k in seq_len(nrow(df_bike))) {
+  lat <- df_bike$LATITUDE[k]
+  lon <- df_bike$LONGITUDE[k]
+  key <- paste0(floor(lat / CELL_DEG), ",", floor(lon / CELL_DEG))
+  if (exists(key, envir = grid)) {
+    grid[[key]] <- rbind(grid[[key]], c(lat, lon))
+  } else {
+    grid[[key]] <- matrix(c(lat, lon), nrow = 1)
+  }
+}
+
+point_in_any_circle <- function(lat, lon) {
+  i <- floor(lat / CELL_DEG)
+  j <- floor(lon / CELL_DEG)
+  for (di in -1:1) {
+    for (dj in -1:1) {
+      key <- paste0(i + di, ",", j + dj)
+      if (exists(key, envir = grid)) {
+        stations <- grid[[key]]
+        dists    <- distance_earth(lat, lon, stations[, 1], stations[, 2])
+        if (any(dists <= CIRCLE_RADIUS_KM)) return(TRUE)
+      }
+    }
+  }
+  FALSE
+}
+
+df_crime$bike_nearby <- mapply(point_in_any_circle, df_crime$LATITUDE, df_crime$LONGITUDE)
+
+VIOLENT  <- c("ROBBERY", "HOMICIDE", "ASSAULT W/DANGEROUS WEAPON", "SEX ABUSE")
+PROPERTY <- c("MOTOR VEHICLE THEFT", "THEFT/OTHER", "THEFT F/AUTO", "BURGLARY")
+
+df_crime <- df_crime %>%
+  mutate(
+    Crime_Category = case_when(
+      OFFENSE %in% VIOLENT ~ "Violent",
+      OFFENSE %in% PROPERTY ~ "Property",
+      TRUE ~ "Other"
+    ),
+    Proximity = ifelse(bike_nearby, "Near", "Far")
+  ) %>%
+  filter(Crime_Category != "Other")
+
+```
+
+## Introduction
+Capital Bikeshare is a bike-share service prevalent in Washington, D.C. and the surrounding metropolitan counties. As bike-sharing ridership grows in densely populated areas, questions arise about whether these stations correlate with local crime patterns. Companies, urban planners, and residents would benefit from knowing whether Capital Bikeshare locations are associated with safer or less-safe surroundings.
+
+Our research question is: Does proximity to a Capital Bikeshare station correlate with higher rates of property crime but lower rates of violent crime in Washington, D.C. in 2026? We examine two crime categories separately because the theoretical mechanisms differ: property crime may be attracted to high-foot-traffic hubs, while violent crime may be deterred by increased pedestrian activity and natural surveillance.
+
+## Data Summary
+We use two open datasets from the D.C. government, scoped to Washington, D.C. in 2026. Because they include all reported incidents and all active stations in 2026, they represent population data for reported crimes. 
+
+*   **Capital Bikeshare Locations**: Contains 819 active stations, with `LATITUDE` and `LONGITUDE` coordinates.
+*   **Crime Incidents in 2026**: Contains 4,801 reported offenses with location data and `OFFENSE` category. 
+
+A crime incident is labeled "near" a bikeshare station if it falls within approximately 310 meters (a 5-block radius) of any station. Otherwise, it is "far". Incidents are also classified as "Property" (e.g., theft, burglary) or "Violent" (e.g., robbery, homicide). 
+
+**Data Limitations**: The dataset contains only *reported* crimes; minor property thefts are likely underreported, especially in certain neighborhoods. Furthermore, the GPS coordinates of incidents represent approximate block-level locations rather than exact addresses, introducing some measurement error in the distance calculations. Additionally, some Capital Bikeshare locations were located far outside D.C. in the surrounding suburbs, so we filtered out any stations outside a 7.5-mile (12 km) radius from the geographic center of D.C. Despite these limitations, the data are appropriate to answer our research question because they represent the most comprehensive geographic record of urban crime and transit behavior available for our scope.
+
+## Exploratory Analysis
+
+```{r summaries, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4.5, fig.align='center'}
+## R code to create and display summaries in part 1. 
+# 1. Numerical Summary: Raw counts by proximity and crime category
+cat("Numerical Summary 1: Incident Counts by Proximity and Crime Category\n")
+table_dist <- table(Proximity = df_crime$Proximity, Category = df_crime$Crime_Category)
+print(table_dist)
+cat("\n")
+
+# 2. Numerical Summary: Row percentages
+cat("Numerical Summary 2: Crime Category Proportions Within Proximity Group (%)\n")
+prop_dist <- prop.table(table_dist, margin = 1) * 100
+print(round(prop_dist, 1))
+cat("\n")
+
+# 3. Graphical Summary: Crime dot map with bikeshare stations overlaid
+plot_map <- ggplot() +
+  geom_point(
+    data  = df_crime,
+    aes(x = LONGITUDE, y = LATITUDE, color = Crime_Category),
+    alpha = 0.35, size = 0.7
+  ) +
+  geom_point(
+    data  = df_bike,
+    aes(x = LONGITUDE, y = LATITUDE),
+    color = "#2ecc71", shape = 17, size = 1.4, alpha = 0.85
+  ) +
+  scale_color_manual(
+    values = c("Property" = "#e67e22", "Violent" = "#c0392b"),
+    name   = "Crime Type"
+  ) +
+  coord_fixed(ratio = COORD_RATIO) +
+  labs(
+    title    = "Crime Incidents and Capital Bikeshare Stations",
+    subtitle = "Washington, D.C., 2026 | Green triangles = Bikeshare stations",
+    x        = "Longitude",
+    y        = "Latitude"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title    = element_text(face = "bold"),
+    plot.subtitle = element_text(color = "gray40"),
+    legend.position = "bottom"
+  )
+print(plot_map)
+
+# 4. Graphical Summary: Faceted crime density heatmap
+plot_heat <- ggplot(df_crime, aes(x = LONGITUDE, y = LATITUDE)) +
+  stat_density_2d(
+    aes(fill = after_stat(density)),
+    geom     = "raster",
+    contour  = FALSE
+  ) +
+  geom_point(
+    data  = df_bike,
+    aes(x = LONGITUDE, y = LATITUDE),
+    color = "white", size = 0.5, alpha = 0.7
+  ) +
+  scale_fill_viridis_c(option = "magma", name = "Density") +
+  facet_wrap(~Crime_Category, labeller = labeller(Crime_Category = c(
+    Property = "Property Crime", Violent = "Violent Crime"
+  ))) +
+  coord_fixed(ratio = COORD_RATIO) +
+  labs(
+    title    = "Crime Density Heatmap by Category",
+    subtitle = "White dots indicate Capital Bikeshare Stations",
+    x        = "Longitude",
+    y        = "Latitude"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title      = element_text(face = "bold"),
+    plot.subtitle   = element_text(color = "gray40"),
+    strip.text      = element_text(face = "bold"),
+    legend.position = "right"
+  )
+print(plot_heat)
+```
+
+## Conclusions
+The numerical summaries reveal that of 4,801 total incidents, property crimes dominate at 88.9% near bikeshare stations vs 83.1% far from them, while violent crimes are proportionally lower near stations (11.1%) than far away (16.9%).
+
+The crime dot map visualizes why: bikeshare stations (green triangles) are densely concentrated in D.C.'s core, where orange property crime dots heavily cluster. The density heatmap makes this even clearer — both crime types share a similar geographic core (central D.C.), but the property crime hotspot is more intense and tightly aligned with the bikeshare network. Violent crime, by contrast, is more diffuse across the city, including in areas with fewer stations.
+
+To definitively test whether this visual pattern is statistically significant, we perform Pearson's chi-squared tests of independence on the proximity and crime category variables.
+
+```{r chisq, warning=FALSE, echo=FALSE}
+alpha <- 0.05
+
+# Contingency tables
+ct_prop <- table(
+  bike_nearby = df_crime$bike_nearby,
+  is_property = df_crime$Crime_Category == "Property"
+)
+ct_viol <- table(
+  bike_nearby = df_crime$bike_nearby,
+  is_violent  = df_crime$Crime_Category == "Violent"
+)
+
+# Extract percentages
+prop_near <- prop.table(ct_prop, margin = 1)["TRUE", "TRUE"] * 100
+prop_far  <- prop.table(ct_prop, margin = 1)["FALSE", "TRUE"] * 100
+viol_near <- prop.table(ct_viol, margin = 1)["TRUE", "TRUE"] * 100
+viol_far  <- prop.table(ct_viol, margin = 1)["FALSE", "TRUE"] * 100
+
+# Test 1: Property Crime
+test_prop <- chisq.test(ct_prop)
+cat("=== SET 1: Property Crime: Chi-Squared Test ===\n\n")
+cat("Contingency table:\n")
+print(ct_prop)
+cat(sprintf("\n  Chi2 = %.4f,  df = %d,  p-value = %.4e\n", test_prop$statistic, test_prop$parameter, test_prop$p.value))
+cat(sprintf("  Near bikeshare: %.1f%% property crime\n", prop_near))
+cat(sprintf("  Far from bikeshare: %.1f%% property crime\n\n", prop_far))
+
+if (test_prop$p.value < alpha) {
+  cat(sprintf("  -> Reject Ho at a = %g.\n", alpha))
+  if (prop_near > prop_far) {
+    cat("  Property crime rate is significantly HIGHER near bikeshare stations (supports Ha).\n")
+  } else {
+    cat("  Property crime rate is significantly LOWER near bikeshare stations (opposite of Ha).\n")
+  }
+} else {
+  cat(sprintf("  -> Fail to reject Ho at a = %g.\n    No significant association found.\n", alpha))
+}
+
+cat("\n======================================================\n\n")
+
+# Test 2: Violent Crime
+test_viol <- chisq.test(ct_viol)
+cat("=== SET 2: Violent Crime: Chi-Squared Test ===\n\n")
+cat("Contingency table:\n")
+print(ct_viol)
+cat(sprintf("\n  Chi2 = %.4f,  df = %d,  p-value = %.4e\n", test_viol$statistic, test_viol$parameter, test_viol$p.value))
+cat(sprintf("  Near bikeshare: %.1f%% violent crime\n", viol_near))
+cat(sprintf("  Far from bikeshare: %.1f%% violent crime\n\n", viol_far))
+
+if (test_viol$p.value < alpha) {
+  cat(sprintf("  -> Reject Ho at a = %g.\n", alpha))
+  if (viol_near < viol_far) {
+    cat("  Violent crime rate is significantly LOWER near bikeshare stations (supports Ha).\n")
+  } else {
+    cat("  Violent crime rate is significantly HIGHER near bikeshare stations (opposite of Ha).\n")
+  }
+} else {
+  cat(sprintf("  -> Fail to reject Ho at a = %g.\n    No significant association found.\n", alpha))
+}
+```
+
+The chi-squared tests produce p-values well below the $\alpha=0.05$ threshold, proving that the correlation is statistically significant. The final results definitively confirm a spatial pattern: Capital Bikeshare stations are located in areas with significantly elevated levels of property crime, but significantly reduced levels of violent crime.
+
+\newpage
+
+## References
+Crime Incidents in 2026. (n.d.). [Dataset]. [Link to source](https://hub.arcgis.com/datasets/c92a2cee0111473985c389e7a0805ea5_41/explore?location=38.904150%2C-77.012050%2C11)
+
+Capital Bikeshare locations. (n.d.). [Link to source](https://hub.arcgis.com/datasets/a1f7acf65795451d89f0a38565a975b3_5/explore?location=38.906141%2C-76.986165%2C11)
+
+Rimolo, S. (2023, April 20). Bicycle share systems: a predictor of crime? [Link to source](https://dash.harvard.edu/entities/publication/1f0bef1c-cc23-4d42-8c54-4edfe17951d8)
+
+Google. (2026). Gemini (March 8 version) [Large language model]. [Link to source](https://gemini.google.com/)
