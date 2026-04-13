@@ -1,5 +1,6 @@
 ---
-title: "Project Part 1" 
+title: "Project Part 1"
+author: "Thomas Kennedy & Cathy Le"
 fontsize: 12pt
 geometry: margin=1in
 urlcolor: black
@@ -118,13 +119,13 @@ We use two open datasets from the D.C. government, scoped to Washington, D.C. in
 *   **Capital Bikeshare Locations**: Contains 819 active stations, with `LATITUDE` and `LONGITUDE` coordinates.
 *   **Crime Incidents in 2026**: Contains 4,801 reported offenses with location data and `OFFENSE` category. 
 
-A crime incident is labeled "near" a bikeshare station if it falls within approximately 310 meters (a 5-block radius) of any station. Otherwise, it is "far". Incidents are also classified as "Property" (e.g., theft, burglary) or "Violent" (e.g., robbery, homicide). 
+A crime incident is labeled "near" a bikeshare station if it falls within approximately 310 meters, or a 5-block radius, of any station. Otherwise, it is "far". Incidents are also classified as "Property" such as theft and burglary, or "Violent" such as robbery and homicide. 
 
-**Data Limitations**: The dataset contains only *reported* crimes; minor property thefts are likely underreported, especially in certain neighborhoods. Furthermore, the GPS coordinates of incidents represent approximate block-level locations rather than exact addresses, introducing some measurement error in the distance calculations. Additionally, some Capital Bikeshare locations were located far outside D.C. in the surrounding suburbs, so we filtered out any stations outside a 7.5-mile (12 km) radius from the geographic center of D.C. Despite these limitations, the data are appropriate to answer our research question because they represent the most comprehensive geographic record of urban crime and transit behavior available for our scope.
+**Data Limitations**: The dataset contains only *reported* crimes; minor property thefts are likely underreported, especially in certain neighborhoods. Furthermore, the GPS coordinates of incidents represent approximate block-level locations rather than exact addresses, introducing some measurement error in the distance calculations. Additionally, some Capital Bikeshare locations were located far outside D.C. in the surrounding suburbs, so we filtered out any stations outside a 12 km radius from the geographic center of D.C. Despite these limitations, the data are appropriate to answer our research question because they represent the most comprehensive geographic record of urban crime and transit behavior available for our scope.
 
 ## Exploratory Analysis
 
-```{r summaries, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4.5, fig.align='center'}
+```{r summaries, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6.5, fig.height=4, out.width="85%", fig.align='center'}
 ## R code to create and display summaries in part 1. 
 # 1. Numerical Summary: Raw counts by proximity and crime category
 cat("Numerical Summary 1: Incident Counts by Proximity and Crime Category\n")
@@ -179,7 +180,7 @@ plot_heat <- ggplot(df_crime, aes(x = LONGITUDE, y = LATITUDE)) +
   geom_point(
     data  = df_bike,
     aes(x = LONGITUDE, y = LATITUDE),
-    color = "white", size = 0.5, alpha = 0.7
+    color = "cyan", size = 0.5, alpha = 0.7
   ) +
   scale_fill_viridis_c(option = "magma", name = "Density") +
   facet_wrap(~Crime_Category, labeller = labeller(Crime_Category = c(
@@ -188,7 +189,7 @@ plot_heat <- ggplot(df_crime, aes(x = LONGITUDE, y = LATITUDE)) +
   coord_fixed(ratio = COORD_RATIO) +
   labs(
     title    = "Crime Density Heatmap by Category",
-    subtitle = "White dots indicate Capital Bikeshare Stations",
+    subtitle = "Cyan dots indicate Capital Bikeshare Stations",
     x        = "Longitude",
     y        = "Latitude"
   ) +
@@ -203,75 +204,9 @@ print(plot_heat)
 ```
 
 ## Conclusions
-The numerical summaries reveal that of 4,801 total incidents, property crimes dominate at 88.9% near bikeshare stations vs 83.1% far from them, while violent crimes are proportionally lower near stations (11.1%) than far away (16.9%).
+The numerical summaries reveal that of 4,801 total incidents, property crimes dominate at 88.9% near bikeshare stations vs 83.1% far from them. Conversely, violent crimes are proportionally lower near stations at 11.1% compared to 16.9% further away.
 
-The crime dot map visualizes why: bikeshare stations (green triangles) are densely concentrated in D.C.'s core, where orange property crime dots heavily cluster. The density heatmap makes this even clearer — both crime types share a similar geographic core (central D.C.), but the property crime hotspot is more intense and tightly aligned with the bikeshare network. Violent crime, by contrast, is more diffuse across the city, including in areas with fewer stations.
-
-To definitively test whether this visual pattern is statistically significant, we perform Pearson's chi-squared tests of independence on the proximity and crime category variables.
-
-```{r chisq, warning=FALSE, echo=FALSE}
-alpha <- 0.05
-
-# Contingency tables
-ct_prop <- table(
-  bike_nearby = df_crime$bike_nearby,
-  is_property = df_crime$Crime_Category == "Property"
-)
-ct_viol <- table(
-  bike_nearby = df_crime$bike_nearby,
-  is_violent  = df_crime$Crime_Category == "Violent"
-)
-
-# Extract percentages
-prop_near <- prop.table(ct_prop, margin = 1)["TRUE", "TRUE"] * 100
-prop_far  <- prop.table(ct_prop, margin = 1)["FALSE", "TRUE"] * 100
-viol_near <- prop.table(ct_viol, margin = 1)["TRUE", "TRUE"] * 100
-viol_far  <- prop.table(ct_viol, margin = 1)["FALSE", "TRUE"] * 100
-
-# Test 1: Property Crime
-test_prop <- chisq.test(ct_prop)
-cat("=== SET 1: Property Crime: Chi-Squared Test ===\n\n")
-cat("Contingency table:\n")
-print(ct_prop)
-cat(sprintf("\n  Chi2 = %.4f,  df = %d,  p-value = %.4e\n", test_prop$statistic, test_prop$parameter, test_prop$p.value))
-cat(sprintf("  Near bikeshare: %.1f%% property crime\n", prop_near))
-cat(sprintf("  Far from bikeshare: %.1f%% property crime\n\n", prop_far))
-
-if (test_prop$p.value < alpha) {
-  cat(sprintf("  -> Reject Ho at a = %g.\n", alpha))
-  if (prop_near > prop_far) {
-    cat("  Property crime rate is significantly HIGHER near bikeshare stations (supports Ha).\n")
-  } else {
-    cat("  Property crime rate is significantly LOWER near bikeshare stations (opposite of Ha).\n")
-  }
-} else {
-  cat(sprintf("  -> Fail to reject Ho at a = %g.\n    No significant association found.\n", alpha))
-}
-
-cat("\n======================================================\n\n")
-
-# Test 2: Violent Crime
-test_viol <- chisq.test(ct_viol)
-cat("=== SET 2: Violent Crime: Chi-Squared Test ===\n\n")
-cat("Contingency table:\n")
-print(ct_viol)
-cat(sprintf("\n  Chi2 = %.4f,  df = %d,  p-value = %.4e\n", test_viol$statistic, test_viol$parameter, test_viol$p.value))
-cat(sprintf("  Near bikeshare: %.1f%% violent crime\n", viol_near))
-cat(sprintf("  Far from bikeshare: %.1f%% violent crime\n\n", viol_far))
-
-if (test_viol$p.value < alpha) {
-  cat(sprintf("  -> Reject Ho at a = %g.\n", alpha))
-  if (viol_near < viol_far) {
-    cat("  Violent crime rate is significantly LOWER near bikeshare stations (supports Ha).\n")
-  } else {
-    cat("  Violent crime rate is significantly HIGHER near bikeshare stations (opposite of Ha).\n")
-  }
-} else {
-  cat(sprintf("  -> Fail to reject Ho at a = %g.\n    No significant association found.\n", alpha))
-}
-```
-
-The chi-squared tests produce p-values well below the $\alpha=0.05$ threshold, proving that the correlation is statistically significant. The final results definitively confirm a spatial pattern: Capital Bikeshare stations are located in areas with significantly elevated levels of property crime, but significantly reduced levels of violent crime.
+The crime dot map visualizes why this occurs: bikeshare stations, represented as green triangles, are densely concentrated in D.C.'s core, where orange property crime dots heavily cluster. The density heatmap makes this even clearer. Both crime types share a similar geographic core in central D.C., but the property crime hotspot is more intense and tightly aligned with the bikeshare network. Violent crime, by contrast, is more diffuse across the city, including in areas with fewer stations. The visual patterns thus suggest a difference in crime composition depending on proximity to bikeshare stations.
 
 \newpage
 
