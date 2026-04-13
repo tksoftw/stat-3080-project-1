@@ -110,9 +110,9 @@ df_crime <- df_crime %>%
 ```
 
 ## Introduction
-Capital Bikeshare is a bike-share service prevalent in Washington, D.C. and the surrounding metropolitan counties. As bike-sharing ridership grows in densely populated areas, questions arise about whether these stations correlate with local crime patterns. Companies, urban planners, and residents would benefit from knowing whether Capital Bikeshare locations are associated with safer or less-safe surroundings.
+Capital Bikeshare stations are a familiar sight across Washington, D.C. and the surrounding metropolitan counties. As these bright red bikes become an increasingly popular way to navigate the city, they naturally alter the flow of daily activity in densely populated neighborhoods. This shift raises a practical question for urban planners, local businesses, and everyday residents regarding neighborhood safety. People want to know if placing a mini-transit hub on their block changes the local crime rate, and whether these hubs make the immediate surroundings safer or more vulnerable.
 
-Our research question is: Does proximity to a Capital Bikeshare station correlate with higher rates of property crime but lower rates of violent crime in Washington, D.C. in 2026? We examine two crime categories separately because the theoretical mechanisms differ: property crime may be attracted to high-foot-traffic hubs, while violent crime may be deterred by increased pedestrian activity and natural surveillance.
+To get a clear answer, our research focuses on data from Washington, D.C. in 2026. We want to know if proximity to a Capital Bikeshare station correlates with higher rates of property crime but lower rates of violent crime. We examine these two categories separately because human behavior drives them in very different directions. A busy docking station creates a centralized area of foot traffic. For property crimes like theft or vandalism, that constant churn of people might provide a convenient, target-rich environment. Conversely, a steady stream of riders creates a layer of natural surveillance. Having more eyes on the street and constant pedestrian movement might actively discourage violent crimes from occurring in the immediate area.
 
 ## Data Summary
 We use two open datasets from the D.C. government, scoped to Washington, D.C. in 2026. Because they include all reported incidents and all active stations in 2026, they represent population data for reported crimes. 
@@ -205,9 +205,11 @@ print(plot_heat)
 ```
 
 ## Conclusions
-The numerical summaries reveal that of 4,801 total incidents, property crimes dominate at 88.9% near bikeshare stations vs 83.1% far from them. Conversely, violent crimes are proportionally lower near stations at 11.1% compared to 16.9% further away.
+The 4,801 incidents in our dataset show a shift in offense types based on how close you are to a docking location. Near the stations, property crimes dominate the environment, making up 88.9% of reported incidents compared to 11.1% for violent crimes. Move away from the bikeshare network, and that ratio changes. In those outer zones, the proportion of property crimes falls to 83.1%, while violent crimes rise to 16.9%.
 
-The crime dot map visualizes why this occurs: bikeshare stations, represented as green triangles, are densely concentrated in D.C.'s core, where orange property crime dots heavily cluster. The density heatmap makes this even clearer. Both crime types share a similar geographic core in central D.C., but the property crime hotspot is more intense and tightly aligned with the bikeshare network. Violent crime, by contrast, is more diffuse across the city, including in areas with fewer stations. The visual patterns thus suggest a difference in crime composition depending on proximity to bikeshare stations.
+The two maps we generated earlier show exactly how this geography plays out on the streets. On the dot map, green triangles mark the bikeshare stations packed into D.C.'s central core, and the orange dots tracking property crimes stack heavily over those exact same blocks. The density heatmap brings the contrast into sharper focus. Both categories of crime share a center in the middle of the city, but the property crime hotspot remains intensely concentrated along the bikeshare network's footprint. Violent crime scatters much more broadly, spreading into outer neighborhoods that lack docking infrastructure entirely.
+
+Nevertheless, a major underlying factor drives this visual overlap: population density. Urban planners intentionally build bikeshare infrastructure in D.C.'s most densely populated and commercially active neighborhoods. These high-density blocks naturally generate more opportunities for theft simply because they contain more retail spaces, more pedestrians, and more unattended belongings. The concentrated property crime we see around the bikeshare network might be a byproduct of the sheer volume of daily human activity in the city's core, rather than the docking stations themselves acting as the primary draw for offenses.
 
 \newpage
 
@@ -219,3 +221,7 @@ Capital Bikeshare locations. (n.d.). [Link to source](https://hub.arcgis.com/dat
 Rimolo, S. (2023, April 20). Bicycle share systems: a predictor of crime? [Link to source](https://dash.harvard.edu/entities/publication/1f0bef1c-cc23-4d42-8c54-4edfe17951d8)
 
 Google. (2026). Gemini (March 8 version) [Large language model]. [Link to source](https://gemini.google.com/)
+
+Anthropic. (2026). Claude (Version 4.6 Opus) [Large language model]. [Link to source](https://claude.ai/)
+Anthropic. (2026). Claude (Version 4.6 Sonnet) [Large language model]. [Link to source](https://claude.ai/)
+Google. (2026). Gemini (Version 3.1 Pro) [Large language model]. [Link to source](https://gemini.google.com/)
