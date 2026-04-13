@@ -9,6 +9,7 @@ header-includes:
 - \usepackage{setspace}
 - \onehalfspacing
 ---
+**Team GitHub Repository:** https://github.com/tksoftw/stat-3080-project-1
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, highlight=FALSE)
@@ -19,11 +20,11 @@ knitr::opts_chunk$set(echo = TRUE, highlight=FALSE)
 ## Use this chunk for reading in the data, combining the data, and any other major data cleaning that is not relevant to show.
 
 required_pkgs <- c("rmarkdown", "knitr", "dplyr", "tidyr", "ggplot2", "scales", "viridis")
-for (pkg in required_pkgs) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg, repos = "http://cran.us.r-project.org")
-  }
-}
+# for (pkg in required_pkgs) {
+#   if (!requireNamespace(pkg, quietly = TRUE)) {
+#     install.packages(pkg, repos = "http://cran.us.r-project.org")
+#   }
+# }
 
 suppressPackageStartupMessages({
   library(dplyr)
